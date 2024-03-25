@@ -1,0 +1,71 @@
+name: load-dotenv-vault
+description: 'Loads a dotenv-vault environment from .env.vault into the GitHub Actions env'
+branding:
+  icon: 'lock'
+  color: 'green'
+inputs:
+  dotenv-key:
+    description: 'The dotenv-vault encryption key'
+    required: true
+  mode:
+    description: 'The suffix to use on the .env file generated from dotenv-vault decrypt (e.g., ci results in .env.ci)'
+    required: false
+    default: 'ci'
+  load-mode:
+    description: 'Sets whether the program should fail when the .env file is not present (strict) or continue (skip)'
+    required: false
+    default: 'skip'
+  node-version:
+    description: 'The version of Node.js to use'
+    required: false
+    default: '20'
+  node-version-file:
+    description: 'The path to a file containing the version of Node.js to use'
+    required: false
+  architecture:
+    description: 'The architecture of Node.js to use (x86 or x64)'
+    required: false
+  check-latest:
+    description: 'Set to true to check for the latest available version of Node.js'
+    required: false
+  registry-url:
+    description: 'The base URL of the npm registry'
+    required: false
+  scope:
+    description: 'The scope of the npm registry'
+    required: false
+  token:
+    description: 'The token to use for authentication with the npm registry'
+    required: false
+  cache:
+    description: 'The path to the npm cache directory'
+    required: false
+  cache-dependency-path:
+    description: 'The path to the dependency file (e.g., package-lock.json)'
+    required: false
+  always-auth:
+    description: 'Set always-auth option in npmrc file'
+    required: false
+runs:
+  using: 'composite'
+  steps:
+    - name: decrypt-dotenv-vault
+      uses: BluMintInc/decrypt-dotenv-vault@v1.0.0
+      with:
+        dotenv-key: ${{ inputs.dotenv-key }}
+        env-file: .env.${{ inputs.mode }}
+        node-version: ${{ inputs.node-version }}
+        node-version-file: ${{ inputs.node-version-file }}
+        architecture: ${{ inputs.architecture }}
+        check-latest: ${{ inputs.check-latest }}
+        registry-url: ${{ inputs.registry-url }}
+        scope: ${{ inputs.scope }}
+        token: ${{ inputs.token }}
+        cache: ${{ inputs.cache }}
+        cache-dependency-path: ${{ inputs.cache-dependency-path }}
+        always-auth: ${{ inputs.always-auth }}
+    - name: Load .env file
+      uses: xom9ikk/dotenv@v2.3.0
+      with:
+        mode: ${{ inputs.mode }}
+        load-mode: ${{ inputs.load-mode }}
