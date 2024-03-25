@@ -49,11 +49,19 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Set env-file name
+      run: |
+        if [ "${{ inputs.mode }}" == "" ] || [ "${{ inputs.mode }}" == "development" ]; then
+          echo "env_file_name=.env" >> $GITHUB_ENV
+        else
+          echo "env_file_name=.env.${{ inputs.mode }}" >> $GITHUB_ENV
+        fi
+      shell: bash
     - name: decrypt-dotenv-vault
-      uses: BluMintInc/decrypt-dotenv-vault@v1.0.0
+      uses: BluMintInc/decrypt-dotenv-vault@v1.0.1
       with:
         dotenv-key: ${{ inputs.dotenv-key }}
-        env-file: .env.${{ inputs.mode }}
+        env-file: ${{ env.env_file_name }}
         node-version: ${{ inputs.node-version }}
         node-version-file: ${{ inputs.node-version-file }}
         architecture: ${{ inputs.architecture }}
