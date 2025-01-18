@@ -49,66 +49,51 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Set env-file name
-      run: |
-        if [ "${{ inputs.mode }}" == "" ] || [ "${{ inputs.mode }}" == "development" ]; then
-          echo "env_file_name=.env" >> $GITHUB_ENV
-        else
-          echo "env_file_name=.env.${{ inputs.mode }}" >> $GITHUB_ENV
-        fi
-      shell: bash
+      # Ensure Required Files Exist
+      - name: Verify Required Files Exist
+        run: |
+          if [ ! -f .env.vault ]; then
+            echo "::error:: .env.vault file is missing! Ensure it is committed or generated."
+            exit 1
+          fi
+          if [ ! -f package-lock.json ]; then
+            echo "::error:: package-lock.json is missing! Ensure it is committed."
+            exit 1
+          fi
+        shell: bash
 
-    # Add cache for node_modules
-    - name: Cache node modules
-      id: cache-nodemodules
-      uses: actions/cache@v3
-      env:
-        cache-name: cache-node-modules
-      with:
-        path: node_modules
-        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-build-${{ env.cache-name }}-
-          ${{ runner.os }}-build-
-          ${{ runner.os }}-
-    - name: Verify .env.vault Exists
-      run: |
-        if [ ! -f .env.vault ]; then
-          echo "::error:: .env.vault file is missing!"
-          exit 1
-        fi
-      shell: bash
-    - name: Cache dotenv files
-      id: cache-dotenv
-      uses: actions/cache@v3
-      env:
-        cache-name: cache-dotenv
-      with:
-        path: ${{ env.env_file_name }}
-        key: ${{ runner.os }}-dotenv-${{ env.cache-name }}-${{ hashFiles('.env.vault') }}
-        restore-keys: |
-          ${{ runner.os }}-dotenv-${{ env.cache-name }}-
-          ${{ runner.os }}-dotenv-
+      # Cache dotenv file (only if an exact match exists)
+      - name: Cache dotenv files
+        id: cache-dotenv
+        uses: actions/cache@v3
+        with:
+          path: .env
+          key: ${{ runner.os }}-dotenv-${{ hashFiles('.env.vault') || 'no-vault' }}
 
-    - name: decrypt-dotenv-vault
-      if: steps.cache-dotenv.outputs.cache-hit != 'true'
-      uses: BluMintInc/decrypt-dotenv-vault@v1.0.1
-      with:
-        dotenv-key: ${{ inputs.dotenv-key }}
-        env-file: ${{ env.env_file_name }}
-        node-version: ${{ inputs.node-version }}
-        node-version-file: ${{ inputs.node-version-file }}
-        architecture: ${{ inputs.architecture }}
-        check-latest: ${{ inputs.check-latest }}
-        registry-url: ${{ inputs.registry-url }}
-        scope: ${{ inputs.scope }}
-        token: ${{ inputs.token }}
-        cache: ${{ inputs.cache }}
-        cache-dependency-path: ${{ inputs.cache-dependency-path }}
-        always-auth: ${{ inputs.always-auth }}
+      # Decrypt dotenv vault ONLY if the cache was not restored
+      - name: Decrypt dotenv vault if cache is missing
+        if: steps.cache-dotenv.outputs.cache-hit != 'true'
+        uses: BluMintInc/decrypt-dotenv-vault@v1.0.1
+        with:
+          dotenv-key: ${{ inputs.dotenv-key }}
+          env-file: .env
 
-    - name: Load .env file
-      uses: xom9ikk/dotenv@v2.3.0
-      with:
-        mode: ${{ inputs.mode }}
-        load-mode: ${{ inputs.load-mode }}
+      # 5Cache node_modules (only restore exact match)
+      - name: Cache node modules
+        id: cache-nodemodules
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-build-node-modules-${{ hashFiles('**/package-lock.json') || 'no-lock' }}
+
+      # Install Dependencies ONLY if cache was not restored
+      - name: Install Dependencies
+        if: steps.cache-nodemodules.outputs.cache-hit != 'true'
+        run: npm ci
+
+      # Load .env file into GitHub Actions environment
+      - name: Load .env file
+        uses: xom9ikk/dotenv@v2.3.0
+        with:
+          mode: ci
+          load-mode: skip
