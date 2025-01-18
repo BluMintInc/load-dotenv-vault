@@ -57,7 +57,36 @@ runs:
           echo "env_file_name=.env.${{ inputs.mode }}" >> $GITHUB_ENV
         fi
       shell: bash
+
+    # Add cache for node_modules
+    - name: Cache node modules
+      id: cache-nodemodules
+      uses: actions/cache@v3
+      env:
+        cache-name: cache-node-modules
+      with:
+        path: node_modules
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ env.cache-name }}-
+          ${{ runner.os }}-build-
+          ${{ runner.os }}-
+
+    # Add cache for dotenv files
+    - name: Cache dotenv files
+      id: cache-dotenv
+      uses: actions/cache@v3
+      env:
+        cache-name: cache-dotenv
+      with:
+        path: ${{ env.env_file_name }}
+        key: ${{ runner.os }}-dotenv-${{ env.cache-name }}-${{ hashFiles('.env.vault') }}
+        restore-keys: |
+          ${{ runner.os }}-dotenv-${{ env.cache-name }}-
+          ${{ runner.os }}-dotenv-
+
     - name: decrypt-dotenv-vault
+      if: steps.cache-dotenv.outputs.cache-hit != 'true'
       uses: BluMintInc/decrypt-dotenv-vault@v1.0.1
       with:
         dotenv-key: ${{ inputs.dotenv-key }}
@@ -72,6 +101,7 @@ runs:
         cache: ${{ inputs.cache }}
         cache-dependency-path: ${{ inputs.cache-dependency-path }}
         always-auth: ${{ inputs.always-auth }}
+
     - name: Load .env file
       uses: xom9ikk/dotenv@v2.3.0
       with:
