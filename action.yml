@@ -71,8 +71,13 @@ runs:
           ${{ runner.os }}-build-${{ env.cache-name }}-
           ${{ runner.os }}-build-
           ${{ runner.os }}-
-
-    # Add cache for dotenv files
+    - name: Verify .env.vault Exists
+      run: |
+        if [ ! -f .env.vault ]; then
+          echo "::error:: .env.vault file is missing!"
+          exit 1
+        fi
+      shell: bash
     - name: Cache dotenv files
       id: cache-dotenv
       uses: actions/cache@v3
