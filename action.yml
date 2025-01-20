@@ -18,7 +18,7 @@ inputs:
   node-version:
     description: 'The version of Node.js to use'
     required: false
-    default: '20'
+    default: '22'
   node-version-file:
     description: 'The path to a file containing the version of Node.js to use'
     required: false
